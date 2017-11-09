@@ -39,11 +39,6 @@ function login($post)
     }
     session_start();
     $_SESSION['u_id']=$get_user['u_id'];
-    if ($get_weight!=false) {
-        $_SESSION['weight']=$get_weight;
-    } else {
-        $_SESSION['weight']=0;
-    }
     $return=$get_user;
     unset($return['password']);
     //检查是否有新消息
@@ -54,7 +49,6 @@ function login($post)
     $return['token']=mt_rand();
     $redis->set('user_token'.$get_user['u_id'], $return['token']);
     ret_status($return);
-    session_write_close();
 }
 
 function register($post)
@@ -73,22 +67,17 @@ function register($post)
     if (strtolower($post['CaptchaCode'])!=$_SESSION['authcode']) {
         ret_status($return, -3, '验证码错误');
     }
-    $inactivated_users = M('inactivated_users');
-    $seed = mt_rand();
     $data=array(
-        'username'=>$post['username'],
-        'email'=>$post['email'],
+        'nick'=>$post['username'],
         'password'=>password_hash($post['password'], PASSWORD_BCRYPT),
         'sex'=>$post['sex'],
-        'register_time'=>date('Y/m/d H:i:s'),
-        'seed'=>$seed
+        'head'=>'',
     );
-    $res = $inactivated_users->add($data);
+    $res = M('users')->add($data);
     if ($res===false) {
         ret_status($return, -1, '注册失败，数据库插入数据出错');
     }
-    $_SESSION['tmp_username']=$post['username'];
-    $_SESSION['tmp_email']=$post['email'];
+    $_SESSION['u_id']=$res;
     $return['id']=$res;
     ret_status($return);
 }
