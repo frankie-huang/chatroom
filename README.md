@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 This project was bootstrapped with [Create React App](https://github.com/facebookincubator/create-react-app).
 
 Below you will find some information on how to perform common tasks.<br>
@@ -981,3 +982,7 @@ Note that in order to support routers that use HTML5 `pushState` API, you may wa
 ## Something Missing?
 
 If you have ideas for more “How To” recipes that should be on this page, [let us know](https://github.com/facebookincubator/create-react-app/issues) or [contribute some!](https://github.com/facebookincubator/create-react-app/edit/master/packages/react-scripts/template/README.md)
+=======
+# chatroom
+itproject，it项目管理大作业呀
+>>>>>>> 551d26ca86a1f45f92a02b4f008042551c5efd0d

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
 # dependencies
@@ -13,3 +14,8 @@ build
 .DS_Store
 .env
 npm-debug.log
+=======
+workerman.log
+_mnt_Code_wamp_www_Github_chatroom_server_demo.php.pid
+Model/config.php
+>>>>>>> 551d26ca86a1f45f92a02b4f008042551c5efd0d
