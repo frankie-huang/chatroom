@@ -6,7 +6,6 @@ CREATE TABLE users(
   `u_id` int(10) not null auto_increment primary key COMMENT "user_id，用户ID，用户唯一标识符", 
   `nick` varchar(20) not null COMMENT "昵称/用户名",
   `password` varchar(20) not null COMMENT "密码",
-  `sex` enum('0', '1', '2') DEFAULT '0' COMMENT "性别",
   `head` text not null COMMENT "头像图片地址"
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -18,6 +17,14 @@ CREATE TABLE message(
   `time` datetime not null COMMENT "发送时间",
   FOREIGN KEY (`from`) REFERENCES `users` (`u_id`) ON DELETE CASCADE,
   FOREIGN KEY (`to`) REFERENCES `users` (`u_id`) ON DELETE CASCADE 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE room_message(
+  `id` int(100) not null auto_increment primary key,
+  `from` int(10) not null COMMENT "消息发送者",
+  `content` text not null COMMENT "消息内容",
+  `time` datetime not null COMMENT "发送时间",
+  FOREIGN KEY (`from`) REFERENCES `users` (`u_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- 好友标签分组

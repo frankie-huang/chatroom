@@ -33,53 +33,76 @@ function is_login($post)
 function login($post)
 {
     global $redis;
-    $get_user = getByUid($post['u_id']);
+    $get_user = getByUserName($post['usn']);
+    if ($get_user==false) {
+        ret_status($return, 0, '用户不存在');
+    }
     if (!password_verify($post['password'], $get_user['password'])) {
-        ret_status($return, -2, '密码错误');
+        ret_status($return, 0, '密码错误');
     }
     session_start();
     $_SESSION['u_id']=$get_user['u_id'];
     $return=$get_user;
     unset($return['password']);
-    //检查是否有新消息
-    $where['to_id']=$_SESSION['u_id'];
-    $where['is_read']=false;
-    $res=M('message')->where($where)->count('content');
-    $return['number']=$res;
-    $return['token']=mt_rand();
-    $redis->set('user_token'.$get_user['u_id'], $return['token']);
+    $return['accessToken']=mt_rand();
+    $redis->set('accessToken'.$get_user['u_id'], $return['accessToken']);
     ret_status($return);
 }
 
-function register($post)
+function signin($post)
 {
     session_start();
-    if (empty($post['username'])) {
-        ret_status($return, -1, '用户名为空');
+    if (empty($post['usn'])) {
+        ret_status($return, 0, '用户名不能为空');
     }
-    $get_user = getByUserName($post['username']);
+    $get_user = getByUserName($post['usn']);
     if ($get_user!=false) {
-        ret_status($return, -1, '用户名已被注册');
-    }
-    if (!isset($_SESSION['authcode'])||strlen($_SESSION['authcode'])<4) {
-        ret_status($return, -2, '验证码过期');
-    }
-    if (strtolower($post['CaptchaCode'])!=$_SESSION['authcode']) {
-        ret_status($return, -3, '验证码错误');
+        ret_status($return, 0, '用户名已被注册');
     }
     $data=array(
-        'nick'=>$post['username'],
+        'nick'=>$post['usn'],
         'password'=>password_hash($post['password'], PASSWORD_BCRYPT),
-        'sex'=>$post['sex'],
-        'head'=>'',
+        'head'=>'public/img/head/default_head.jpg',
     );
     $res = M('users')->add($data);
     if ($res===false) {
-        ret_status($return, -1, '注册失败，数据库插入数据出错');
+        ret_status($return, 0, '注册失败，数据库插入数据出错');
     }
     $_SESSION['u_id']=$res;
-    $return['id']=$res;
+    $return['user_id']=$res;
+    $return['accessToken']=mt_rand();
+    $redis->set('accessToken'.$res, $return['accessToken']);
     ret_status($return);
 }
 
-?>
+function getByUid($u_id)
+{
+    $users = M("users");
+    $where['u_id'] = $u_id;
+    $result = $users->where($where)->find();
+    if ($result==false) {
+        return false;
+    } else {
+        return $result;
+    }
+}
+
+function getByUserName($username)
+{
+    $users = M("users");
+    $where['nick'] = $username;
+    $result = $users->where($where)->find();
+    if ($result==false) {
+        return false;
+    } else {
+        return $result;
+    }
+}
+
+//AJAX返回
+function ret_status(&$return, $status = 1, $error = '')
+{
+    $return['status']=$status;
+    $return['error']=$error;
+    exit(json_encode($return));
+}
