@@ -133,7 +133,7 @@ function send($post){
         $data = array(
             'from'=>$post['user'],
             'content'=>$post['content'],
-            'time'=>date('Y/m/d H:i:s'),
+            'time'=>date('Y-m-d H:i:s'),
         );
         M('room_message')->add($data);
         send_message($connect, $return);
