@@ -70,16 +70,37 @@ function callbackNewData($connect, $data)
 function callbackConnectClose($connect)
 {
     global $redis;
+    global $ws_worker;
     $redis->sRem($redis->get('connect_id'.$connect->id), $connect->id);
     if ($redis->sCard($redis->get('connect_id'.$connect->id))==0) {
         $redis->sRem("userList", $redis->get('connect_id'.$connect->id));
     }
     $redis->delete('connect_id'.$connect->id);
+    //发送新用户列表
+    $return['type']='newRoomUser';
+    $return['userList'] = $redis->sMembers("userList");
+    $number_userList = $redis->sCard("userList");
+    for($i=0;$i<$number_userList;$i++){
+        $get_user = getByUid($return['userList'][$i]);
+        if($get_user==false){
+            unset($return['userList'][$i]);
+            continue;
+        }
+        $return['userList'][$i] = array(
+            'id'=>$return['userList'][$i],
+            'name'=>$get_user['nick']
+        );
+    }
+    foreach($ws_worker->connections as $connection)
+    {
+        send_message($connection, $return);
+    }
 }
 
 function getRoomUser($post)
 {
     global $redis;
+    global $ws_worker;
     $connect = $post['connect'];
     $return['type']='roomUserResponse';
     $get_user=getByUid($post['user']);
@@ -97,10 +118,10 @@ function getRoomUser($post)
     $return['userList'] = $redis->sMembers("userList");
     $number_userList = $redis->sCard("userList");
     for($i=0;$i<$number_userList;$i++){
-        if($return['userList'][$i]==$post['user']){
-            unset($return['userList'][$i]);
-            continue;
-        }
+        // if($return['userList'][$i]==$post['user']){
+        //     unset($return['userList'][$i]);
+        //     continue;
+        // }
         $get_user = getByUid($return['userList'][$i]);
         if($get_user==false){
             unset($return['userList'][$i]);
@@ -112,6 +133,12 @@ function getRoomUser($post)
         );
     }
     send_message($connect, $return);
+    //发送新用户列表
+    $return['type']='newRoomUser';
+    foreach($ws_worker->connections as $connection)
+    {
+        send_message($connection, $return);
+    }
 }
 
 function send($post){

@@ -52,6 +52,7 @@ function login($post)
 function signin($post)
 {
     session_start();
+    global $redis;
     if (empty($post['usn'])) {
         ret_status($return, 0, '用户名不能为空');
     }
