@@ -5,7 +5,7 @@ use chat;
 CREATE TABLE users( 
   `u_id` int(10) not null auto_increment primary key COMMENT "user_id，用户ID，用户唯一标识符", 
   `nick` varchar(20) not null COMMENT "昵称/用户名",
-  `password` varchar(20) not null COMMENT "密码",
+  `password` varchar(256) not null COMMENT "密码",
   `head` text not null COMMENT "头像图片地址"
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
