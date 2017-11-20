@@ -178,6 +178,234 @@ function send($post){
     }
 }
 
+function addFriend($post){
+    global $redis;
+    global $ws_worker;
+    $connect = $post['connect'];
+    $return['type']="addFriendReponse";
+    $user_id = $redis->get('connect_id'.$connect->id);
+    if ($redis->get("accessToken".$user_id)!=$post['accessToken']) {
+        send_message($connect, $return, 0, '验证不通过');
+        $connect->close();
+    }
+    $get_user = getByUserName($post['user']);
+    if($get_user == false){
+        send_message($connect, $return, 0, '用户搜不到');
+    }else{
+        if($get_user['u_id']==$user_id){
+            send_message($connect, $return, 0, '不能加自己');
+            return false;
+        }
+        $tag_table = M('tag');
+        $tag_table->startTrans();
+        $label = '我的好友';
+        if(isset($post['label'])){
+            $label = $post['label'];
+        }
+        $get_tag = getTagByLabel($label, $user_id);
+        if($get_tag == false){
+            $data = array(
+                'u_id'=>$user_id,
+                'label'=>$label,
+            );
+            $tag_id = $tag_table->add($data);
+            if($tag_id == false){
+                $tag_table->rollback();
+                send_message($connect, $return, 0, 'tag表插入失败');
+                return false;
+            }
+            $get_tag['id'] = $tag_id;
+        }
+        //检验是否已是好友
+        $where['from&to'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
+        $where['from&to'] = array($get_user['u_id'], $user_id, '_tosingle'=>true);
+        $where['_logic'] = 'or';
+        $is_friend = $tag_table->table('friend')->where($where)->find();
+        if($is_friend != false){
+            $tag_table->rollback();
+            send_message($connect, $return, 0, '你们已是好友');
+            return false;
+        }
+        $data = array(
+            'from'=>$user_id,
+            'to'=>$get_user['u_id'],
+            'tag_id'=>$get_tag['id'],
+        );
+        $res = $tag_table->table('friend')->add($data);
+        if($res == false){
+            $tag_table->rollback();
+            send_message($connect, $return, 0, 'friend表插入失败');
+            return false;
+        }
+        $tag_table->commit();
+        $where_friend['from']=$user_id;
+        $where_friend['to']=$user_id;
+        $where_friend['_logic'] = 'or';
+        $friendList = M('friend')->where($where_friend)->select();
+        $count = count($friendList);
+        for($i=0;$i<$count;$i++){
+            if($friendList[$i]['from']==$user_id){
+                $friendList[$i]['id']=$friendList[$i]['to'];
+                $friendList[$i]['name']=getByUid($friendList[$i]['to'])['nick'];
+            }else{
+                $friendList[$i]['id']=$friendList[$i]['from'];
+                $friendList[$i]['name']=getByUid($friendList[$i]['from'])['nick'];
+            }
+        }
+        $return['friendList']=$friendList;
+        send_message($connect, $return);
+        //发送给被加好友的人
+        $object_group = $redis->sMembers($get_user['u_id']);
+        $object_group_number = $redis->sCard($get_user);
+        for($i=0;$i<$object_group_number;$i++){
+            if(isset($ws_worker->connections[$object_group[$i]])){
+                send_message($ws_worker->connections[$object_group[$i]],$return);
+            }
+        }
+    }
+}
+
+function deleteFriend($post){
+    global $redis;
+    global $ws_worker;
+    $connect = $post['connect'];
+    $return['type']="deleteFriendReponse";
+    $user_id = $redis->get('connect_id'.$connect->id);
+    if ($redis->get("accessToken".$user_id)!=$post['accessToken']) {
+        send_message($connect, $return, 0, '验证不通过');
+        $connect->close();
+    }
+    $get_user = getByUid($post['user']);
+    if($get_user == false){
+        send_message($connect, $return, 0, '用户搜不到');
+    }else{
+        if($get_user['u_id']==$user_id){
+            send_message($connect, $return, 0, '不能删自己');
+            return false;
+        }
+        $friend_table = M('friend');
+        //检验是否已是好友
+        $where['from&to'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
+        $where['from&to'] = array($get_user['u_id'], $user_id, '_tosingle'=>true);
+        $where['_logic'] = 'or';
+        $is_friend = $friend_table->where($where)->find();
+        if($is_friend == false){
+            send_message($connect, $return, 0, '你们本来并不是好友');
+            return false;
+        }
+        $res = $friend_table->where($where)->delete();
+        if($res == false){
+            send_message($connect, $return, 0, 'friend表插入失败');
+            return false;
+        }
+        $where_friend['from']=$user_id;
+        $where_friend['to']=$user_id;
+        $where_friend['_logic'] = 'or';
+        $friendList = M('friend')->where($where_friend)->select();
+        $count = count($friendList);
+        for($i=0;$i<$count;$i++){
+            if($friendList[$i]['from']==$user_id){
+                $friendList[$i]['id']=$friendList[$i]['to'];
+                $friendList[$i]['name']=getByUid($friendList[$i]['to'])['nick'];
+            }else{
+                $friendList[$i]['id']=$friendList[$i]['from'];
+                $friendList[$i]['name']=getByUid($friendList[$i]['from'])['nick'];
+            }
+        }
+        $return['friendList']=$friendList;
+        send_message($connect, $return);
+        //发送给被删好友的人
+        $object_group = $redis->sMembers($get_user['u_id']);
+        $object_group_number = $redis->sCard($get_user);
+        for($i=0;$i<$object_group_number;$i++){
+            if(isset($ws_worker->connections[$object_group[$i]])){
+                send_message($ws_worker->connections[$object_group[$i]],$return);
+            }
+        }
+    }
+}
+
+function sendMessageTo($post){
+    global $redis;
+    global $ws_worker;
+    $connect = $post['connect'];
+    $return['type']="receiveMessageFrom";
+    $user_id = $redis->get('connect_id'.$connect->id);
+    if ($redis->get("accessToken".$user_id)!=$post['accessToken']) {
+        send_message($connect, $return, 0, '验证不通过');
+        $connect->close();
+    }
+    $get_user = getByUid($post['to_user']);
+    if($get_user == false){
+        send_message($connect, $return, 0, '接收的用户搜不到');
+    }else{
+        if($get_user['u_id']==$user_id){
+            send_message($connect, $return, 0, '不能给自己发消息');
+            return false;
+        }
+        $friend_table = M('friend');
+        //检验是否已是好友
+        $where['from&to'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
+        $where['from&to'] = array($get_user['u_id'], $user_id, '_tosingle'=>true);
+        $where['_logic'] = 'or';
+        $is_friend = $friend_table->where($where)->find();
+        if($is_friend == false){
+            send_message($connect, $return, 0, '你们并不是好友');
+            return false;
+        }
+        $data = array(
+            'from'=>$user_id,
+            'to'=>$get_user['u_id'],
+            'content'=>$post['text'],
+            'time'=>date('Y-m-d H:i:s'),
+        );
+        $res = M('message')->add($data);
+        if($res === false){
+            send_message($connect, $return, 0, '数据库插入失败');
+            return false;
+        }
+        $return['to_user']=$get_user['u_id'];
+        $return['from_user'] = $user_id;
+        $return['text']=$post['text'];
+        //发送给接收者
+        $object_group = $redis->sMembers($get_user['u_id']);
+        $object_group_number = $redis->sCard($get_user);
+        for($i=0;$i<$object_group_number;$i++){
+            if(isset($ws_worker->connections[$object_group[$i]])){
+                send_message($ws_worker->connections[$object_group[$i]],$return);
+            }
+        }
+    }
+}
+
+function getFriendList($post){
+    global $redis;
+    global $ws_worker;
+    $connect = $post['connect'];
+    $return['type']="getFriendReponse";
+    $user_id = $redis->get('connect_id'.$connect->id);
+    if ($redis->get("accessToken".$user_id)!=$post['accessToken']) {
+        send_message($connect, $return, 0, '验证不通过');
+        $connect->close();
+    }
+    $where_friend['from']=$user_id;
+    $where_friend['to']=$user_id;
+    $where_friend['_logic'] = 'or';
+    $friendList = M('friend')->where($where_friend)->select();
+    $count = count($friendList);
+    for($i=0;$i<$count;$i++){
+        if($friendList[$i]['from']==$user_id){
+            $friendList[$i]['id']=$friendList[$i]['to'];
+            $friendList[$i]['name']=getByUid($friendList[$i]['to'])['nick'];
+        }else{
+            $friendList[$i]['id']=$friendList[$i]['from'];
+            $friendList[$i]['name']=getByUid($friendList[$i]['from'])['nick'];
+        }
+    }
+    $return['friendList']=$friendList;
+    send_message($connect, $return);
+}
+
 function send_message($connect, &$return, $status = 1, $error = '')
 {
     $return['status']=$status;

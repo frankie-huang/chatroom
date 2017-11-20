@@ -100,6 +100,18 @@ function getByUserName($username)
     }
 }
 
+function getTagByLabel($label, $user_id){
+    $tag_table = M('tag');
+    $where['u_id'] = $user_id;
+    $where['label'] = $label;
+    $result = $tag_table->where($where)->find();
+    if ($result == false) {
+        return false;
+    } else {
+        return $result;
+    }
+}
+
 //AJAX返回
 function ret_status(&$return, $status = 1, $error = '')
 {
