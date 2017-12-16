@@ -232,7 +232,7 @@ function addFriend($post){
             'tag_id'=>$get_tag['id'],
         );
         $res = $tag_table->table('friend')->add($data);
-        if($res == false){
+        if($res === false){
             $tag_table->rollback();
             send_message($connect, $return, 0, 'friend表插入失败');
             return false;
@@ -243,6 +243,9 @@ function addFriend($post){
         $where_friend['_logic'] = 'or';
         $friendList = M('friend')->where($where_friend)->select();
         $count = count($friendList);
+        if ($count == 0) {
+            $friendList = array();
+        }
         for($i=0;$i<$count;$i++){
             if($friendList[$i]['from']==$user_id){
                 $friendList[$i]['id']=$friendList[$i]['to'];
@@ -286,7 +289,7 @@ function deleteFriend($post){
         $friend_table = M('friend');
         //检验是否已是好友
         $where['from&to'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
-        $where['from&to'] = array($get_user['u_id'], $user_id, '_tosingle'=>true);
+        $where['to&from'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
         $where['_logic'] = 'or';
         $is_friend = $friend_table->where($where)->find();
         if($is_friend == false){
@@ -303,6 +306,9 @@ function deleteFriend($post){
         $where_friend['_logic'] = 'or';
         $friendList = M('friend')->where($where_friend)->select();
         $count = count($friendList);
+        if ($count == 0) {
+            $friendList = array();
+        }
         for($i=0;$i<$count;$i++){
             if($friendList[$i]['from']==$user_id){
                 $friendList[$i]['id']=$friendList[$i]['to'];
@@ -346,7 +352,7 @@ function sendMessageTo($post){
         $friend_table = M('friend');
         //检验是否已是好友
         $where['from&to'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
-        $where['from&to'] = array($get_user['u_id'], $user_id, '_tosingle'=>true);
+        $where['to&from'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
         $where['_logic'] = 'or';
         $is_friend = $friend_table->where($where)->find();
         if($is_friend == false){
@@ -369,7 +375,15 @@ function sendMessageTo($post){
         $return['text']=$post['text'];
         //发送给接收者
         $object_group = $redis->sMembers($get_user['u_id']);
-        $object_group_number = $redis->sCard($get_user);
+        $object_group_number = $redis->sCard($get_user['u_id']);
+        for($i=0;$i<$object_group_number;$i++){
+            if(isset($ws_worker->connections[$object_group[$i]])){
+                send_message($ws_worker->connections[$object_group[$i]],$return);
+            }
+        }
+        // 返回给发送者
+        $object_group = $redis->sMembers($user_id);
+        $object_group_number = $redis->sCard($user_id);
         for($i=0;$i<$object_group_number;$i++){
             if(isset($ws_worker->connections[$object_group[$i]])){
                 send_message($ws_worker->connections[$object_group[$i]],$return);
@@ -393,6 +407,9 @@ function getFriendList($post){
     $where_friend['_logic'] = 'or';
     $friendList = M('friend')->where($where_friend)->select();
     $count = count($friendList);
+    if ($count == 0) {
+        $friendList = array();
+    }
     for($i=0;$i<$count;$i++){
         if($friendList[$i]['from']==$user_id){
             $friendList[$i]['id']=$friendList[$i]['to'];
