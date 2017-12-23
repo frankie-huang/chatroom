@@ -33,7 +33,7 @@ $ws_worker->onMessage = 'callbackNewData';
 $ws_worker->onClose = 'callbackConnectClose';
 
 // $redis = new Redis();
-// $redis->connect('127.0.0.1', 6379);
+// $redis->connect('127.0.0.1', 6380);
 
 //一共设置了多少个redis键
 // $redis->set('connect_id'.$connect->id, $u_id);

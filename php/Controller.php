@@ -2,7 +2,7 @@
 header('Content-type:text/json');
 
 $redis = new Redis();
-$redis->connect('127.0.0.1', 6379);
+$redis->connect('127.0.0.1', 6380);
 
 //检测是否登录
 function is_login($post)
@@ -70,7 +70,7 @@ function signin($post)
         ret_status($return, 0, '注册失败，数据库插入数据出错');
     }
     $_SESSION['u_id']=$res;
-    $return['user_id']=$res;
+    $return['u_id']=$res;
     $return['accessToken']=mt_rand();
     $redis->set('accessToken'.$res, $return['accessToken']);
     ret_status($return);
