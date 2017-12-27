@@ -218,7 +218,7 @@ function addFriend($post){
         }
         //检验是否已是好友
         $where['from&to'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
-        $where['from&to'] = array($get_user['u_id'], $user_id, '_tosingle'=>true);
+        $where['to&from'] = array($user_id, $get_user['u_id'], '_tosingle'=>true);
         $where['_logic'] = 'or';
         $is_friend = $tag_table->table('friend')->where($where)->find();
         if($is_friend != false){
